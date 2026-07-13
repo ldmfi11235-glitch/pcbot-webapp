@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>PC Command Deck</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+  :root{
+    --bg-0:#0a0c1b;
+    --bg-1:#12152c;
+    --panel:rgba(255,255,255,0.045);
+    --panel-border:rgba(139,124,246,0.22);
+    --violet:#8b7cf6;
+    --blue:#4f8cf7;
+    --cyan:#3fd8e0;
+    --text:#eceaf9;
+    --text-dim:#8b8fb8;
+    --danger:#ff5f7e;
+    --radius:16px;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0; padding:0; height:100%;}
+  body{
+    background:var(--bg-0);
+    color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    overflow-x:hidden;
+    min-height:100vh;
+    position:relative;
+  }
+
+  /* Aurora background */
+  .aurora{
+    position:fixed; inset:0; z-index:0; overflow:hidden; pointer-events:none;
+  }
+  .blob{
+    position:absolute; border-radius:50%; filter:blur(60px); opacity:0.35;
+    will-change:transform;
+  }
+  .blob.b1{ width:60vw; height:60vw; top:-20%; left:-15%;
+    background:radial-gradient(circle,var(--violet),transparent 70%);
+    animation:float1 18s ease-in-out infinite; }
+  .blob.b2{ width:55vw; height:55vw; bottom:-25%; right:-15%;
+    background:radial-gradient(circle,var(--blue),transparent 70%);
+    animation:float2 22s ease-in-out infinite; }
+  .blob.b3{ width:40vw; height:40vw; top:35%; left:30%;
+    background:radial-gradient(circle,var(--cyan),transparent 70%);
+    animation:float3 26s ease-in-out infinite; }
+
+  @keyframes float1{
+    0%,100%{ transform:translate(0,0) scale(1); }
+    50%{ transform:translate(8%,10%) scale(1.15); }
+  }
+  @keyframes float2{
+    0%,100%{ transform:translate(0,0) scale(1); }
+    50%{ transform:translate(-10%,-6%) scale(1.1); }
+  }
+  @keyframes float3{
+    0%,100%{ transform:translate(-50%,-50%) scale(1); }
+    50%{ transform:translate(-40%,-56%) scale(1.2); }
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    .blob{ animation:none !important; }
+    .pulse-core::before{ animation:none !important; }
+  }
+
+  .wrap{ position:relative; z-index:1; padding:20px 16px 40px; max-width:520px; margin:0 auto; }
+
+  /* Header / status core */
+  .head{ display:flex; align-items:center; gap:14px; margin-bottom:22px; }
+  .pulse-core{ position:relative; width:44px; height:44px; flex-shrink:0; }
+  .pulse-core .dot{
+    position:absolute; inset:14px; border-radius:50%;
+    background:linear-gradient(135deg,var(--cyan),var(--violet));
+  }
+  .pulse-core::before{
+    content:""; position:absolute; inset:0; border-radius:50%;
+    border:1.5px solid var(--cyan);
+    animation:pulseRing 2.2s ease-out infinite;
+  }
+  @keyframes pulseRing{
+    0%{ transform:scale(0.4); opacity:0.9; }
+    100%{ transform:scale(1); opacity:0; }
+  }
+  .head h1{ font-size:17px; font-weight:600; margin:0; letter-spacing:0.3px; }
+  .head p{ font-size:12.5px; color:var(--text-dim); margin:2px 0 0; }
+
+  /* Section */
+  .section-label{
+    font-size:11.5px; letter-spacing:1.2px; text-transform:uppercase;
+    color:var(--text-dim); margin:22px 4px 10px;
+  }
+  .grid{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+
+  /* Buttons */
+  .card-btn{
+    position:relative; overflow:hidden;
+    background:var(--panel);
+    border:1px solid var(--panel-border);
+    border-radius:var(--radius);
+    padding:14px 12px;
+    backdrop-filter:blur(14px);
+    -webkit-backdrop-filter:blur(14px);
+    color:var(--text);
+    display:flex; flex-direction:column; gap:8px; align-items:flex-start;
+    text-align:left;
+    cursor:pointer;
+    transition:transform .15s ease, border-color .2s ease, background .2s ease;
+    font-family:inherit;
+  }
+  .card-btn:active{ transform:scale(0.96); background:rgba(255,255,255,0.09); }
+  .card-btn::after{
+    content:""; position:absolute; inset:0; border-radius:inherit;
+    background:linear-gradient(120deg,transparent 30%,rgba(139,124,246,0.28) 50%,transparent 70%);
+    background-size:220% 100%; background-position:120% 0; opacity:0;
+    transition:opacity .2s ease;
+    pointer-events:none;
+  }
+  .card-btn:active::after{ opacity:1; animation:sheen .6s ease; }
+  @keyframes sheen{ from{ background-position:120% 0; } to{ background-position:-20% 0; } }
+
+  .icon{ font-size:20px; line-height:1; }
+  .label{ font-size:13.5px; font-weight:500; }
+  .sub{ font-size:11px; color:var(--text-dim); margin-top:-4px; }
+
+  .card-btn.wide{ grid-column:1 / -1; flex-direction:row; align-items:center; }
+  .card-btn.wide .icon{ margin-right:2px; }
+
+  .card-btn.danger{ border-color:rgba(255,95,126,0.35); }
+  .card-btn.danger .label{ color:var(--danger); }
+
+  /* Modal */
+  .modal-overlay{
+    position:fixed; inset:0; z-index:10; display:none;
+    align-items:center; justify-content:center;
+    background:rgba(6,7,18,0.65);
+    backdrop-filter:blur(4px);
+    padding:20px;
+  }
+  .modal-overlay.show{ display:flex; }
+  .modal{
+    background:var(--bg-1);
+    border:1px solid var(--panel-border);
+    border-radius:18px;
+    padding:22px 20px;
+    max-width:340px; width:100%;
+    text-align:center;
+    animation:pop .18s ease;
+  }
+  @keyframes pop{ from{ transform:scale(0.9); opacity:0; } to{ transform:scale(1); opacity:1; } }
+  .modal h3{ margin:0 0 8px; font-size:16px; }
+  .modal p{ margin:0 0 18px; font-size:13px; color:var(--text-dim); }
+  .modal-actions{ display:flex; gap:10px; }
+  .modal-actions button{
+    flex:1; padding:11px; border-radius:12px; border:1px solid var(--panel-border);
+    background:var(--panel); color:var(--text); font-size:13.5px; font-weight:500;
+    font-family:inherit; cursor:pointer;
+  }
+  .modal-actions .confirm{ background:linear-gradient(135deg,var(--violet),var(--blue)); border:none; color:#fff; }
+
+  .toast{
+    position:fixed; left:50%; bottom:24px; transform:translateX(-50%) translateY(20px);
+    background:var(--bg-1); border:1px solid var(--panel-border);
+    padding:10px 18px; border-radius:12px; font-size:13px;
+    opacity:0; transition:all .25s ease; z-index:20; pointer-events:none;
+    max-width:88%; text-align:center;
+  }
+  .toast.show{ opacity:1; transform:translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+
+<div class="aurora">
+  <div class="blob b1"></div>
+  <div class="blob b2"></div>
+  <div class="blob b3"></div>
+</div>
+
+<div class="wrap">
+
+  <div class="head">
+    <div class="pulse-core"><div class="dot"></div></div>
+    <div>
+      <h1>Command Deck</h1>
+      <p>Панель керування ПК</p>
+    </div>
+  </div>
+
+  <div class="section-label">Моніторинг</div>
+  <div class="grid">
+    <button class="card-btn" data-action="heatmap"><span class="icon">🖱️</span><span class="label">Теплова карта</span><span class="sub">Миша і клавіатура</span></button>
+    <button class="card-btn" data-action="activity"><span class="icon">🗂️</span><span class="label">Активність</span><span class="sub">Час у програмах</span></button>
+    <button class="card-btn" data-action="cpuram"><span class="icon">📈</span><span class="label">CPU / RAM</span><span class="sub">Графік у реальному часі</span></button>
+    <button class="card-btn" data-action="sysinfo"><span class="icon">🖥️</span><span class="label">Система</span><span class="sub">CPU, RAM, GPU</span></button>
+    <button class="card-btn" data-action="thermal"><span class="icon">🌡️</span><span class="label">Термопаста</span><span class="sub">Динаміка температур</span></button>
+    <button class="card-btn" data-action="netradar"><span class="icon">📡</span><span class="label">Мереж. радар</span><span class="sub">Пристрої в мережі</span></button>
+  </div>
+
+  <div class="section-label">Дії</div>
+  <div class="grid">
+    <button class="card-btn" data-action="screenshot"><span class="icon">📸</span><span class="label">Скріншот</span><span class="sub">Поточний екран</span></button>
+    <button class="card-btn" data-action="pccontrol"><span class="icon">⚙️</span><span class="label">Керування ПК</span><span class="sub">Сон, блокування...</span></button>
+    <button class="card-btn" data-action="backup"><span class="icon">🗄️</span><span class="label">Бекап зараз</span><span class="sub">Запустити архівацію</span></button>
+    <button class="card-btn" data-action="netaudit"><span class="icon">🌐</span><span class="label">Мереж. аудит</span><span class="sub">З'єднання за процесами</span></button>
+  </div>
+
+  <div class="section-label">Довідка</div>
+  <div class="grid">
+    <button class="card-btn" data-action="weather"><span class="icon">🌤️</span><span class="label">Погода</span></button>
+    <button class="card-btn" data-action="news"><span class="icon">📰</span><span class="label">Новини</span></button>
+    <button class="card-btn" data-action="currency"><span class="icon">💱</span><span class="label">Курс валют</span></button>
+    <button class="card-btn" data-action="energy"><span class="icon">🔌</span><span class="label">Енергія</span></button>
+  </div>
+
+  <div class="section-label">Система бота</div>
+  <div class="grid">
+    <button class="card-btn" data-action="clearai"><span class="icon">🧹</span><span class="label">Очистити ШІ-діалог</span></button>
+    <button class="card-btn danger wide" data-action="resetstats" data-confirm="1"
+      data-title="Скинути статистику?" data-desc="Дані миші, клавіатури й активності програм буде видалено.">
+      <span class="icon">♻️</span><span class="label">Скинути статистику</span>
+    </button>
+  </div>
+
+</div>
+
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <h3 id="modalTitle">Підтвердити дію?</h3>
+    <p id="modalDesc">Цю дію не можна скасувати.</p>
+    <div class="modal-actions">
+      <button id="modalCancel">Скасувати</button>
+      <button class="confirm" id="modalConfirm">Підтвердити</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  const tg = window.Telegram ? window.Telegram.WebApp : null;
+  if (tg){ tg.ready(); tg.expand(); }
+
+  const overlay = document.getElementById('modalOverlay');
+  const modalTitle = document.getElementById('modalTitle');
+  const modalDesc = document.getElementById('modalDesc');
+  const toast = document.getElementById('toast');
+  let pendingAction = null;
+
+  function showToast(text){
+    toast.textContent = text;
+    toast.classList.add('show');
+    setTimeout(()=>toast.classList.remove('show'), 1600);
+  }
+
+  function sendAction(action){
+    const payload = JSON.stringify({ action });
+    if (tg && tg.sendData){
+      tg.sendData(payload);
+    } else {
+      showToast('Дія: ' + action + ' (демо, поза Telegram)');
+    }
+  }
+
+  document.querySelectorAll('.card-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const action = btn.dataset.action;
+      if (btn.dataset.confirm){
+        pendingAction = action;
+        modalTitle.textContent = btn.dataset.title || 'Підтвердити дію?';
+        modalDesc.textContent = btn.dataset.desc || '';
+        overlay.classList.add('show');
+      } else {
+        if (tg && tg.HapticFeedback) tg.HapticFeedback.impactOccurred('light');
+        sendAction(action);
+      }
+    });
+  });
+
+  document.getElementById('modalCancel').onclick = ()=>{
+    overlay.classList.remove('show'); pendingAction = null;
+  };
+  document.getElementById('modalConfirm').onclick = ()=>{
+    if (pendingAction){ sendAction(pendingAction); }
+    overlay.classList.remove('show'); pendingAction = null;
+  };
+  overlay.addEventListener('click', (e)=>{ if (e.target === overlay){ overlay.classList.remove('show'); pendingAction = null; } });
+</script>
+
+</body>
+</html>
